@@ -94,7 +94,6 @@ export default function Page() {
       const data = await response.json();
       setApiResponse(data); // Stock API answer
       console.log(data);
-      console.log("ok - requête prête");
       await getSigner()?.sendTransaction(data.txData); // Send the transaction to metasmask for signature
     } catch (error) {
       console.error('Error during the API call:', error);

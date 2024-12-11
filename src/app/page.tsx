@@ -2,41 +2,54 @@
 
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { Provider, utils, Contract } from 'zksync-ethers'; // zkSync SDK
+import { Provider, utils, Contract } from 'zksync-ethers';
 import { erc20ABI } from '../components/contracts';
 import { useEthereum } from '../components/Context';
+import { SendTransaction } from '../components/SendTransaction'
 
 
 export default function Page() {
-  const {account, getProvider, getSigner} = useEthereum();
+  const { account, getProvider, getSigner } = useEthereum();
   const [tokenAddress, setTokenAddress] = useState('');
   const [contractAddress, setContractAddress] = useState('');
+  const [approvalAmount, setApprovalAmount] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [transactionData, setTransactionData] = useState('');
-  const [inProgress, setProgress] = useState<Boolean>(false);
-  const [error, setError] = useState<String | null>(null);
-  const [result, setResult] = useState<any | null>(null);
-  const [approvalAmount, setApprovalAmount] = useState<any>(null);
+
 
   const handleApproval = async () => {
-  if(!ethers.utils.isAddress(tokenAddress)){
-    setError("Invalid token address");
-    return;
-  }
-  if(!ethers.utils.isAddress(contractAddress)){
-    setError("Invalid contract address");
-    return;
-  }
-  if(approvalAmount <0){
-    setError("Invalid approvalAmount");
-    return;
-  }
+    try {
+      // Validation des entrées utilisateur
+      if (!ethers.utils.isAddress(tokenAddress)) {
+        setError('Invalid token address');
+        return;
+      }
+      if (!ethers.utils.isAddress(contractAddress)) {
+        setError('Invalid contract address');
+        return;
+      }
+      if (isNaN(Number(approvalAmount)) || Number(approvalAmount) <= 0) {
+        setError('Invalid approval amount');
+        return;
+      }
 
-      // Initialisation du provider et signer
-      const provider = new Provider("https://testnet.era.zksync.dev"); // URL officielle du testnet zkSync Era
-      const signer = provider.getSigner();
+      // Initialisation du provider et du signer depuis useEthereum
+      const provider = getProvider();
+      const signer = getSigner();
+
+      if (!provider || !signer) {
+        setError('Provider or Signer not initialized');
+        return;
+      }
+
+      // Vérifier si le wallet est connecté
+      if (!account?.isConnected) {
+        setError('Wallet not connected');
+        return;
+      }
 
       // Préparer l'instance de contrat ERC20
-      const erc20Contract = new Contract(tokenAddress, erc20ABI, signer);
+      const erc20Contract = new Contract(tokenAddress, erc20ABI, getProvider()!);
 
       // Préparer la transaction d'approbation
       const approvalTx = await erc20Contract.populateTransaction.approve(
@@ -44,9 +57,10 @@ export default function Page() {
         ethers.utils.parseUnits(approvalAmount, 18)
       );
 
-      // Récupération des paramètres de gas
-      const gasPrice = await provider.getGasPrice(); // Prix du gas sur zkSync
-      const gasLimit = await signer.estimateGas(approvalTx); // Limite de gas estimée
+      // Récupération des paramètres de gas sur zkSync
+      const zkSyncProvider = new Provider('https://testnet.era.zksync.dev'); // zkSync Era Testnet
+      const gasPrice = await zkSyncProvider.getGasPrice();
+      const gasLimit = await zkSyncProvider.estimateGasL1(approvalTx);
 
       // Construire les paramètres pour le Paymaster
       const paymasterParams = utils.getPaymasterParams('<PAYMASTER_ADDRESS>', {
@@ -56,7 +70,7 @@ export default function Page() {
         innerInput: new Uint8Array(),
       });
 
-      // Envoi de la transaction avec customData
+      // Envoyer la transaction via le signer
       const txResponse = await signer.sendTransaction({
         to: tokenAddress,
         data: approvalTx.data,
@@ -68,10 +82,10 @@ export default function Page() {
         },
       });
 
-      console.log('Transaction envoyée:', txResponse.hash);
+      console.log('Transaction envoyée:', txResponse.transactionHash);
       await txResponse.wait();
       console.log('Transaction confirmée');
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = (err as Error).message || 'Une erreur est survenue';
       console.error('Erreur lors de l\'approval:', errorMessage);
       setError(errorMessage);
@@ -100,4 +114,5 @@ export default function Page() {
     </div>
   );
 }
+
 

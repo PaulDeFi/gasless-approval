@@ -9,12 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
     "ethers": "^5.7.2",
     "next": "^13.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "zksync-ethers": "^6.15.3"
+    "zksync-ethers": "^5.0.0"
   },
   "devDependencies": {
     "@types/node": "^17.0.31",

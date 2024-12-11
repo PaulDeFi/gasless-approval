@@ -4,29 +4,36 @@ import { useState } from 'react';
 import { ethers } from 'ethers';
 import { Provider, utils, Contract } from 'zksync-ethers'; // zkSync SDK
 import { erc20ABI } from '../components/contracts';
+import { useEthereum } from '../components/Context';
+
 
 export default function Page() {
-  const [tokenAddress, setTokenAddress] = useState(''); // Chaîne vide par défaut
-  const [contractAddress, setContractAddress] = useState(''); // Chaîne vide par défaut
-  const [approvalAmount, setApprovalAmount] = useState(''); // Chaîne vide par défaut
-  const [error, setError] = useState(null);
+  const {account, getProvider, getSigner} = useEthereum();
+  const [tokenAddress, setTokenAddress] = useState('');
+  const [contractAddress, setContractAddress] = useState('');
+  const [transactionData, setTransactionData] = useState('');
+  const [inProgress, setProgress] = useState<Boolean>(false);
+  const [error, setError] = useState<String | null>(null);
+  const [result, setResult] = useState<any | null>(null);
+  const [approvalAmount, setApprovalAmount] = useState<any>(null);
 
-  if (!ethers.utils.isAddress(tokenAddress)) {
-    setError('Invalid token address');
+  const handleApproval = async () => {
+  if(!ethers.utils.isAddress(tokenAddress)){
+    setError("Invalid token address");
     return;
   }
-  if (!ethers.utils.isAddress(contractAddress)) {
-    setError('Invalid contract address');
-      return;
-    }
-    if (parseFloat(approvalAmount) <= 0) {
-      setError('Invalid approval amount');
-      return;
-    }
+  if(!ethers.utils.isAddress(contractAddress)){
+    setError("Invalid contract address");
+    return;
+  }
+  if(approvalAmount <0){
+    setError("Invalid approvalAmount");
+    return;
+  }
 
       // Initialisation du provider et signer
       const provider = new Provider("https://testnet.era.zksync.dev"); // URL officielle du testnet zkSync Era
-      const signer = new ethers.providers.Web3Provider(window.ethereum).getSigner(); // Metamask signer
+      const signer = provider.getSigner();
 
       // Préparer l'instance de contrat ERC20
       const erc20Contract = new Contract(tokenAddress, erc20ABI, signer);
